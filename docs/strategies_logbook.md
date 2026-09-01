@@ -103,5 +103,13 @@
   * **Step 1 (ATR Ratio):** 선형 이동평균 후행성 한계 규명 (Recall 28.8%, 방어율 21.6%)
   * **Step 2 (Hurst DFA):** 프랙탈 기억성 기반 극단적 방어막 (Recall 86.1%, 방어율 87.7%, 거래수 377회)
   * **Step 3 (3-State HMM):** 3차원 결합확률 기반 중간 균형점 확보 (Recall 47.8%, 방어율 43.0%, 거래수 1,402회)
-  * **Step 4 (Morphology ML):** 5대 직교 피처 + 24시간($T=6$) 윈도우 + XGBoost/RF 앙상블로 **사상 최초 OOS MCC +0.086 양수 돌파 및 2022-01-20 역사적 대폭락 빔 사전 100% 완벽 방어 달성**
+  * **Step 4 (Morphology ML):** 5대 직교 피처 + 24시간($T=6$) 윈도우 + CatBoost/XGBoost/RF 앙상블로 **사상 최초 OOS MCC +0.0886 양수 돌파 및 2022-01-20 역사적 대폭락 빔 사전 100% 완벽 방어 달성**
+  * **Step 5 (Dual Engine Integration & Full-Cycle Optimization):** 
+    * 4H 10x 순방향 스윙 단독 전략: **4.66년간 90회 거래, 승률 74.4%, 총수익률 +854.2% (CAGR 62.86%, MDD -9.32%, 샤프 2.88 🏆)**
+    * 15M 10x 횡보 스캘핑 + 4H 10x 스윙 [합산 듀얼 포트폴리오]: **238회 거래, 승률 67.6%, 총수익률 +1,152.0% 🚀 ($1,000 → $12,520 USDT, MDD -12.45% 🛡️)**
+    * **몬테카를로 10,000회 부트스트랩 검증:** **파산 확률(Probability of Ruin) 0.00% 달성**
+* **관련 리포트:**
+  * 📊 [Step 5 마스터 듀얼 엔진 종합 리포트](../results/reports/strat03_step5_dual_engine_master_report.md)
+  * 📊 [4H 순방향 국면 독립 스윙 전략 리포트](../results/reports/strat03_directional_regime_swing_report.md)
+  * 📊 [CatBoost 및 앙상블 전수 비교 리포트](../results/reports/strat03_step4_catboost_report.md)
 

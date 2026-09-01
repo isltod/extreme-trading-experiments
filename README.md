@@ -52,9 +52,11 @@ extreme_trading_experiments/
   * 전용 연구 리포트: [`docs/strat01_vwap/theoretical_review.md`](docs/strat01_vwap/theoretical_review.md)
 
 * **[전략 3] 4H Multi-Timeframe Regime-Adaptive Dual Engine (`STRAT-03-REGIME-ADAPTIVE`)**
-  * 상태: 🧪 연구 기획 및 5대 독립 국면 판정 알고리즘 벤치마크 단계
-  * 핵심 구조: 4H 관제탑(국면 판정) + 15M 실행부(횡보 50x 스캘핑 vs 추세 10x 추세추종 vs 쇼크 0x 현금)
+  * 상태: ✅ 4.66년 풀사이클 통합 검증 완료 (프로덕션 이식 단계)
+  * 핵심 구조: 4H 관제탑(국면 판정) + 15M 실행부(횡보 10x 스캘핑 vs 추세 10x 스윙)
+  * 성과: **4.66년 238회 거래, 승률 67.6%, 총수익률 +1,152.0% (12.5배 증식), MDD -12.45% 🛡️, 몬테카를로 10,000회 파산확률 0.00%**
   * 전용 기획서: [`docs/strat03_regime/strategy_charter.md`](docs/strat03_regime/strategy_charter.md)
-  * **[핵심 리포트] [금융 ML 국면 판정 지표 체계와 학제간 인식론 고찰 (생태학 vs 금융공학)](results/reports/regime_ml_metrics_and_interdisciplinary_insights.md)**
+  * **[핵심 리포트] [Step 5 4H 관제탑 + 15M 듀얼 엔진 마스터 통합 리포트](results/reports/strat03_step5_dual_engine_master_report.md)**
+  * **[학제간 고찰] [금융 ML 국면 판정 지표 체계와 학제간 인식론 고찰 (생태학 vs 금융공학)](results/reports/regime_ml_metrics_and_interdisciplinary_insights.md)**
 
 
