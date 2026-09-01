@@ -30,8 +30,8 @@ from experiments.strat03_regime.step4_deeplearning_benchmark import (
 TRAIN_SPLIT_DATE = '2024-07-01'
 EMBARGO_SPLIT_DATE = '2024-07-08'
 
-def run_catboost_vs_tree_benchmark():
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] 4.66년 비트코인 풀사이클 데이터 및 5대 직교 피처 로드 중...")
+def run_full_permutation_ensemble_benchmark():
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] 4.66년 비트코인 데이터 로드 및 7대 단독/앙상블 전수 벤치마크 시작...")
     
     df_15m = fetch_4years_data()
     df_4h = resample_15m_to_4h(df_15m)
@@ -56,55 +56,54 @@ def run_catboost_vs_tree_benchmark():
     
     X_all = valid_df[feat_cols].values
     
-    print(f"\n[데이터 분할 완료] Train: {len(X_train):,}개 | Test(OOS): {len(X_test):,}개 | 피처 수: {len(feat_cols)}개")
-    
-    # 1. XGBoost 학습
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] 1. XGBoost (비대칭 부스팅) 훈련 중...")
+    # 1. XGBoost
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] 1. XGBoost 훈련 중...")
     xgb = XGBClassifier(n_estimators=250, max_depth=4, learning_rate=0.02, subsample=0.8, colsample_bytree=0.8, random_state=42, eval_metric='logloss')
     xgb.fit(X_train, y_train)
     prob_xgb_test = xgb.predict_proba(X_test)[:, 1]
     prob_xgb_all = xgb.predict_proba(X_all)[:, 1]
     
-    # 2. Random Forest 학습
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] 2. Random Forest (다수결 배깅) 훈련 중...")
-    rf = RandomForestClassifier(n_estimators=300, max_depth=5, max_features='sqrt', random_state=42, n_jobs=-1)
-    rf.fit(X_train, y_train)
-    prob_rf_test = rf.predict_proba(X_test)[:, 1]
-    prob_rf_all = rf.predict_proba(X_all)[:, 1]
-    
-    # 3. CatBoost 학습
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] 3. CatBoost (대칭 순서화 부스팅) 훈련 중...")
+    # 2. CatBoost
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] 2. CatBoost 훈련 중...")
     cb = CatBoostClassifier(iterations=300, depth=5, learning_rate=0.02, random_seed=42, verbose=False)
     cb.fit(X_train, y_train)
     prob_cb_test = cb.predict_proba(X_test)[:, 1]
     prob_cb_all = cb.predict_proba(X_all)[:, 1]
     
-    # 4. 앙상블 조합 구성 (소프트 보팅 5:5 / 1:1:1)
-    # Ensemble A: XGBoost + Random Forest
-    prob_ens_xgb_rf_test = 0.5 * prob_xgb_test + 0.5 * prob_rf_test
-    prob_ens_xgb_rf_all = 0.5 * prob_xgb_all + 0.5 * prob_rf_all
+    # 3. Random Forest
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] 3. Random Forest 훈련 중...")
+    rf = RandomForestClassifier(n_estimators=300, max_depth=5, max_features='sqrt', random_state=42, n_jobs=-1)
+    rf.fit(X_train, y_train)
+    prob_rf_test = rf.predict_proba(X_test)[:, 1]
+    prob_rf_all = rf.predict_proba(X_all)[:, 1]
     
-    # Ensemble B: XGBoost + CatBoost
-    prob_ens_xgb_cb_test = 0.5 * prob_xgb_test + 0.5 * prob_cb_test
-    prob_ens_xgb_cb_all = 0.5 * prob_xgb_all + 0.5 * prob_cb_all
+    # 앙상블 조합 계산
+    prob_cat_rf_test = 0.5 * prob_cb_test + 0.5 * prob_rf_test
+    prob_cat_rf_all = 0.5 * prob_cb_all + 0.5 * prob_rf_all
     
-    # Ensemble C: Triple Ensemble (XGB + RF + CatBoost)
-    prob_ens_triple_test = (prob_xgb_test + prob_rf_test + prob_cb_test) / 3.0
-    prob_ens_triple_all = (prob_xgb_all + prob_rf_all + prob_cb_all) / 3.0
+    prob_xgb_cb_test = 0.5 * prob_xgb_test + 0.5 * prob_cb_test
+    prob_xgb_cb_all = 0.5 * prob_xgb_all + 0.5 * prob_cb_all
+    
+    prob_xgb_rf_test = 0.5 * prob_xgb_test + 0.5 * prob_rf_test
+    prob_xgb_rf_all = 0.5 * prob_xgb_all + 0.5 * prob_rf_all
+    
+    prob_triple_test = (prob_xgb_test + prob_cb_test + prob_rf_test) / 3.0
+    prob_triple_all = (prob_xgb_all + prob_cb_all + prob_rf_all) / 3.0
     
     models_dict_eval = [
-        ("Model 1: XGBoost (Standard)", prob_xgb_test, prob_xgb_all),
-        ("Model 2: Random Forest (Bagging)", prob_rf_test, prob_rf_all),
-        ("Model 3: CatBoost (Symmetric GBDT)", prob_cb_test, prob_cb_all),
-        ("Ensemble A: [XGBoost + RF]", prob_ens_xgb_rf_test, prob_ens_xgb_rf_all),
-        ("Ensemble B: [XGBoost + CatBoost]", prob_ens_xgb_cb_test, prob_ens_xgb_cb_all),
-        ("Ensemble C: [Triple: XGB+RF+CatBoost]", prob_ens_triple_test, prob_ens_triple_all)
+        ("1. CatBoost (단독)", prob_cb_test, prob_cb_all),
+        ("2. XGBoost (단독)", prob_xgb_test, prob_xgb_all),
+        ("3. Random Forest (단독)", prob_rf_test, prob_rf_all),
+        ("4. 앙상블 [CatBoost + RF]", prob_cat_rf_test, prob_cat_rf_all),
+        ("5. 앙상블 [XGBoost + CatBoost]", prob_xgb_cb_test, prob_xgb_cb_all),
+        ("6. 앙상블 [XGBoost + RF]", prob_xgb_rf_test, prob_xgb_rf_all),
+        ("7. 앙상블 [Triple: XG+Cat+RF]", prob_triple_test, prob_triple_all)
     ]
     
     print("\n" + "="*95)
-    print("🏆 [CatBoost vs XGBoost vs Random Forest & 앙상블 전수 리더보드 (Out-of-Sample Test)]")
+    print("🏆 [CatBoost vs XGBoost vs RF & 모든 앙상블 조합 전수 비교 리더보드 (OOS Test)]")
     print("="*95)
-    print(f"{'모델 / 앙상블 명칭':<38} | {'정확도(Acc)':<12} | {'균형정확도(B.Acc)':<16} | {'매튜스상관(MCC)':<16} | {'추세경고(Recall)':<16} | {'횡보정밀(Precision)'}")
+    print(f"{'모델 / 앙상블 명칭':<34} | {'정확도(Acc)':<12} | {'균형정확도(B.Acc)':<16} | {'매튜스상관(MCC)':<16} | {'추세경고(Recall)':<16} | {'횡보정밀(Precision)'}")
     print("-"*95)
     
     leaderboard = []
@@ -119,7 +118,7 @@ def run_catboost_vs_tree_benchmark():
         recall = tp / (tp + fn) * 100 if (tp + fn) > 0 else 0
         precision = tn / (tn + fn) * 100 if (tn + fn) > 0 else 0
         
-        print(f"{name:<38} | {acc:>10.2f}% | {b_acc:>14.2f}% | {mcc:>14.4f} | {recall:>14.2f}% | {precision:>16.2f}%")
+        print(f"{name:<34} | {acc:>10.2f}% | {b_acc:>14.2f}% | {mcc:>14.4f} | {recall:>14.2f}% | {precision:>16.2f}%")
         
         leaderboard.append({
             'model_name': name,
@@ -139,19 +138,19 @@ def run_catboost_vs_tree_benchmark():
     # 차트 저장
     chart_dir = os.path.join(PROJECT_ROOT, "results", "charts")
     os.makedirs(chart_dir, exist_ok=True)
-    chart_path = os.path.join(chart_dir, "strat03_step4_catboost_vs_tree_benchmark.png")
+    chart_path = os.path.join(chart_dir, "strat03_step4_full_ensemble_permutations.png")
     
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 11))
-    fig.suptitle("⚡ [STRAT-03 Step 4] CatBoost vs XGBoost vs Random Forest & Ensembles Benchmark", fontsize=14, fontweight='bold')
+    fig.suptitle("⚡ [STRAT-03 Step 4] Full Permutation Ensemble Benchmark (CatBoost, XGBoost, RF)", fontsize=14, fontweight='bold')
     
     df_lb = pd.DataFrame(leaderboard)
-    short_names = ['XGBoost', 'RandomForest', 'CatBoost', 'Ens: XGB+RF', 'Ens: XGB+CB', 'Ens: Triple']
+    short_names = ['CatBoost', 'XGBoost', 'RF', 'Cat+RF', 'XG+Cat', 'XG+RF', 'Triple']
     x = np.arange(len(short_names))
     width = 0.35
     
     ax1.bar(x - width/2, df_lb['balanced_acc'], width, label='Balanced Acc (%)', color='royalblue')
     ax1.bar(x + width/2, df_lb['mcc'] * 100, width, label='MCC (x100)', color='darkorange')
-    ax1.set_title("1. Out-of-Sample Balanced Accuracy & MCC Comparison", fontsize=12)
+    ax1.set_title("1. Out-of-Sample Balanced Accuracy & MCC by Ensemble Combination", fontsize=12)
     ax1.set_xticks(x)
     ax1.set_xticklabels(short_names, fontsize=10, fontweight='bold')
     ax1.grid(True, alpha=0.3)
@@ -163,18 +162,16 @@ def run_catboost_vs_tree_benchmark():
         eq = row['equity_series']
         if "None" in name:
             ax2.plot(ts, eq, 'k--', alpha=0.5, label='No Filter')
-        elif "Random Forest" in name:
+        elif "CatBoost + RF" in name:
+            ax2.plot(ts, eq, 'r-', linewidth=2.5, label=f"{name} (Best Balance)")
+        elif "Triple" in name:
+            ax2.plot(ts, eq, 'm-', linewidth=2.5, label=name)
+        elif "XGBoost + CatBoost" in name:
             ax2.plot(ts, eq, 'g-', linewidth=2.0, label=name)
-        elif "XGBoost" in name:
-            ax2.plot(ts, eq, 'b-', linewidth=2.0, label=name)
-        elif "CatBoost" in name and "Ensemble" not in name:
-            ax2.plot(ts, eq, 'r-', linewidth=2.0, label=name)
-        elif "Ensemble B" in name:
-            ax2.plot(ts, eq, 'm-', linewidth=2.5, label=f"{name} (XGB+CB)")
-        elif "Ensemble C" in name:
-            ax2.plot(ts, eq, 'c-', linewidth=2.5, label=f"{name} (Triple)")
+        elif "XGBoost (단독)" in name:
+            ax2.plot(ts, eq, 'b-', alpha=0.7, label=name)
             
-    ax2.set_title("2. 4-Year Equity Curves by Model & Ensemble (Kelly 15% Sizing)", fontsize=12)
+    ax2.set_title("2. 4-Year Equity Curves by Ensemble Combination (Kelly 15% Sizing)", fontsize=12)
     ax2.set_xlabel("Date (2022 ~ 2026)")
     ax2.set_ylabel("Account Balance (USDT)")
     ax2.set_yscale('log')
@@ -187,4 +184,4 @@ def run_catboost_vs_tree_benchmark():
     print(f"\n[차트 저장 완료] {chart_path}")
 
 if __name__ == "__main__":
-    run_catboost_vs_tree_benchmark()
+    run_full_permutation_ensemble_benchmark()
