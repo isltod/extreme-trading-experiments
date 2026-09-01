@@ -79,3 +79,29 @@
 - [ ] **2단계 과제:** 초대형 뉴스(CPI, ETF 등) 발생 시 즉사를 막기 위한 **ATR 변동성 필터** 추가
 - [ ] **수수료 최적화:** 실거래 주문 시 수수료를 0.04%로 절감하기 위한 **지정가(Maker) 체결 주문 로직** 설계
 - [ ] **심리 지표 연동:** 바이낸스 무료 `globalLongShortAccountRatio` 데이터를 활용한 개미 쏠림 필터 추가
+
+---
+
+## 📌 [전략 3] 4H Multi-Timeframe Regime-Adaptive Dual Engine
+* **전략 ID:** `STRAT-03-REGIME-ADAPTIVE`
+* **전략 별칭:** 4H 멀티 타임프레임 국면 적응형 듀얼 엔진 전략
+* **버전:** `v0.1 (Research & Design Phase)`
+* **최초 등록일:** 2026-09-01
+* **상태:** 🧪 연구 기획 및 5대 독립 알고리즘 벤치마크 단계
+* **전용 연구 문서함:**
+  * 📜 [전략 3 기획서 및 연구 로드맵 (Strategy Charter)](strat03_regime/strategy_charter.md)
+  * 📊 [Step 1 4H ATR Ratio 리포트](../results/reports/strat03_step1_atr_report.md)
+  * 📊 [Step 2 4H Hurst DFA 리포트](../results/reports/strat03_step2_hurst_report.md)
+  * 📊 [Step 3 4H Gaussian HMM 리포트](../results/reports/strat03_step3_hmm_report.md)
+  * 📊 [Step 4 4H Morphology ML 리포트](../results/reports/strat03_step4_morphology_ml_report.md)
+  * 🧠 [금융 ML 국면 판정 지표 체계와 학제간 인식론 고찰 (생태학 vs 금융공학)](../results/reports/regime_ml_metrics_and_interdisciplinary_insights.md)
+* **핵심 아키텍처:**
+  * **상위 관제탑(4H):** 5대 직교 피처 기반 Random Forest / XGBoost 지도학습 국면 판정기 (OOS MCC +0.086, 위험 방어율 80.0%)
+  * **하위 실행부(15M):** 횡보 시 50x 스캘핑(전략 1 가동), 추세 시 10x 추세추종, 쇼크 시 0x 현금 관망
+* **벤치마크 마일스톤:**
+  * **Step 0:** 4.66년 풀사이클(2022~2026, 163,617개 15M / 10,197개 4H) 데이터셋 구축 완료
+  * **Step 1 (ATR Ratio):** 선형 이동평균 후행성 한계 규명 (Recall 28.8%, 방어율 21.6%)
+  * **Step 2 (Hurst DFA):** 프랙탈 기억성 기반 극단적 방어막 (Recall 86.1%, 방어율 87.7%, 거래수 377회)
+  * **Step 3 (3-State HMM):** 3차원 결합확률 기반 중간 균형점 확보 (Recall 47.8%, 방어율 43.0%, 거래수 1,402회)
+  * **Step 4 (Morphology ML):** 5대 직교 피처 + 24시간($T=6$) 윈도우 + XGBoost/RF 앙상블로 **사상 최초 OOS MCC +0.086 양수 돌파 및 2022-01-20 역사적 대폭락 빔 사전 100% 완벽 방어 달성**
+
