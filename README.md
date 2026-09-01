@@ -51,3 +51,10 @@ extreme_trading_experiments/
   * 마스터 로그북: [`docs/strategies_logbook.md`](docs/strategies_logbook.md)
   * 전용 연구 리포트: [`docs/strat01_vwap/theoretical_review.md`](docs/strat01_vwap/theoretical_review.md)
 
+* **[전략 3] 4H Multi-Timeframe Regime-Adaptive Dual Engine (`STRAT-03-REGIME-ADAPTIVE`)**
+  * 상태: 🧪 연구 기획 및 5대 독립 국면 판정 알고리즘 벤치마크 단계
+  * 핵심 구조: 4H 관제탑(국면 판정) + 15M 실행부(횡보 50x 스캘핑 vs 추세 10x 추세추종 vs 쇼크 0x 현금)
+  * 전용 기획서: [`docs/strat03_regime/strategy_charter.md`](docs/strat03_regime/strategy_charter.md)
+  * **[핵심 리포트] [금융 ML 국면 판정 지표 체계와 학제간 인식론 고찰 (생태학 vs 금융공학)](results/reports/regime_ml_metrics_and_interdisciplinary_insights.md)**
+
+
