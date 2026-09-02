@@ -94,14 +94,23 @@
   * 📊 [Step 2 4H Hurst DFA 리포트](../results/reports/strat03_step2_hurst_report.md)
   * 📊 [Step 3 4H Gaussian HMM 리포트](../results/reports/strat03_step3_hmm_report.md)
   * 📊 [Step 4 4H Morphology ML 리포트](../results/reports/strat03_step4_morphology_ml_report.md)
+  * 📊 [Step 4 CatBoost 및 앙상블 전수 비교 리포트](../results/reports/strat03_step4_catboost_report.md)
+  * 🚀 [Step 5 4H 순방향 국면 독립 스윙 전략 리포트](../results/reports/strat03_directional_regime_swing_report.md)
+  * 🔬 [Step 5 3-Way 광범위(1%~10%) TP/SL 그리드 서치 및 고원(Plateau) 리포트 (5x)](../results/reports/strat03_step5_tpsl_wide_grid_report.md)
+  * 🔬 [Step 5 10배 레버리지 광범위 TP/SL 그리드 서치 및 OOS 리포트 (10x)](../results/reports/strat03_step5_tpsl_10x_grid_report.md)
   * 🧠 [금융 ML 국면 판정 지표 체계와 학제간 인식론 고찰 (생태학 vs 금융공학)](../results/reports/regime_ml_metrics_and_interdisciplinary_insights.md)
 * **핵심 아키텍처:**
-  * **상위 관제탑(4H):** 5대 직교 피처 기반 Random Forest / XGBoost 지도학습 국면 판정기 (OOS MCC +0.086, 위험 방어율 80.0%)
-  * **하위 실행부(15M):** 횡보 시 50x 스캘핑(전략 1 가동), 추세 시 10x 추세추종, 쇼크 시 0x 현금 관망
+  * **상위 관제탑(4H):** 5대 직교 피처 기반 CatBoost + Random Forest 앙상블 국면 판정기 (OOS MCC +0.1478)
+  * **독립 스윙 실행부(4H):** 1:2 비대칭 손익비(익절 +4~6% vs 손절 -2~3%) 기반 저빈도 고승률 독립 스윙 전략
 * **벤치마크 마일스톤:**
   * **Step 0:** 4.66년 풀사이클(2022~2026, 163,617개 15M / 10,197개 4H) 데이터셋 구축 완료
   * **Step 1 (ATR Ratio):** 선형 이동평균 후행성 한계 규명 (Recall 28.8%, 방어율 21.6%)
   * **Step 2 (Hurst DFA):** 프랙탈 기억성 기반 극단적 방어막 (Recall 86.1%, 방어율 87.7%, 거래수 377회)
   * **Step 3 (3-State HMM):** 3차원 결합확률 기반 중간 균형점 확보 (Recall 47.8%, 방어율 43.0%, 거래수 1,402회)
-  * **Step 4 (Morphology ML):** 5대 직교 피처 + 24시간($T=6$) 윈도우 + XGBoost/RF 앙상블로 **사상 최초 OOS MCC +0.086 양수 돌파 및 2022-01-20 역사적 대폭락 빔 사전 100% 완벽 방어 달성**
+  * **Step 4 (Morphology ML & CatBoost):** 5대 직교 피처 + CatBoost/RF 앙상블로 2022-01-20 역사적 대폭락 빔 사전 100% 방어
+  * **Step 5 (4H Standalone Directional Regime Swing Strategy):**
+    * 3-Class 다중 분류 앙상블 + 1:2 비대칭 손익비로 **4H 국면 판정기 단독 매매 전략 구축 완료**
+    * **10배 레버리지 성과:** 4.66년간 **총수익률 +1,201.2% (13배 성장), MDD -9.8% 🛡️, 승률 59~68%**
+    * **3-Way 데이터 엄격 분할(Train / Val / Test) 및 400개 조합 전수 탐색으로 파라미터 고원(Plateau: TP 4~6% / SL 2~3%) 및 일반화 성공 검증 완료**
+
 
