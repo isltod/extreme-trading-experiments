@@ -30,7 +30,6 @@ FEE_TAKER = 0.0005 # 0.05%
 LEVERAGE = 5.0 # 기준 레버리지 5배
 POS_FRAC = 0.20 # 자산 대비 20% 베팅
 
-# 3-Way 분할 기준일
 TRAIN_END = '2023-12-31'
 VAL_START = '2024-01-08'
 VAL_END = '2024-12-31'
@@ -60,7 +59,6 @@ def simulate_trades(df_slice, p_bull_col, p_bear_col, threshold, tp_pct, sl_pct,
     
     for i in range(n - 1):
         if not in_trade:
-            # 진입 판단
             if p_bull[i] >= threshold and p_bull[i] > p_bear[i] + 0.05 and capital > 0:
                 in_trade = True
                 trade_pos = 1
@@ -147,7 +145,6 @@ def run_tpsl_wide_grid_search():
     df_micro_4h = compute_15m_microstructure_aggregation(df_15m)
     df_features, base_features = build_5_orthogonal_features(df_4h, df_micro_4h)
     
-    # 🎯 순방향 24시간 수익률 타겟 (1.5% 기준)
     future_24h_ret = (df_features['close'].shift(-6) - df_features['close']) / df_features['close']
     df_features['dir_label'] = 0
     df_features.loc[future_24h_ret > 0.015, 'dir_label'] = 1
@@ -159,7 +156,6 @@ def run_tpsl_wide_grid_search():
     valid_df['timestamp'] = pd.to_datetime(valid_df['timestamp'])
     valid_df = valid_df.sort_values('timestamp').reset_index(drop=True)
     
-    # 3-Way 분할 마스크
     train_mask = valid_df['timestamp'] <= TRAIN_END
     val_mask = (valid_df['timestamp'] >= VAL_START) & (valid_df['timestamp'] <= VAL_END)
     test_mask = valid_df['timestamp'] >= TEST_START
@@ -173,11 +169,8 @@ def run_tpsl_wide_grid_search():
     print(f"• 2. Validation Set (파라미터 튜닝용): {val_mask.sum():,}개 (2024-01 ~ 2024-12 / 1.0년)")
     print(f"• 3. OOS Test Set (최종 블라인드 시험용): {test_mask.sum():,}개 (2025-01 ~ 2026-09 / 1.66년)")
     
-    # 모델 학습 (오직 Train 데이터로만 학습!)
-    print(f"\n[{datetime.now().strftime('%H:%M:%S')}] Train 세트로 CatBoost & RF 앙상블 학습 중...")
     cb = CatBoostClassifier(iterations=350, depth=5, learning_rate=0.03, loss_function='MultiClass', random_seed=42, verbose=False)
     cb.fit(X_train, y_train)
-    
     rf = RandomForestClassifier(n_estimators=300, max_depth=5, max_features='sqrt', random_state=42, n_jobs=-1)
     rf.fit(X_train, y_train)
     
@@ -199,24 +192,27 @@ def run_tpsl_wide_grid_search():
     # -------------------------------------------------------------------------
     # 1% ~ 10% 광범위 그리드 서치 (Validation Set 대상)
     # -------------------------------------------------------------------------
-    tp_grid = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10] # 1% ~ 10%
-    sl_grid = [0.01, 0.015, 0.02, 0.025, 0.03, 0.04, 0.05, 0.06, 0.08, 0.10] # 1% ~ 10%
+    tp_grid = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10]
+    sl_grid = [0.01, 0.015, 0.02, 0.025, 0.03, 0.04, 0.05, 0.06, 0.08, 0.10]
     th_grid = [0.36, 0.38, 0.40, 0.42]
     
-    print(f"\n[{datetime.now().strftime('%H:%M:%S')}] 🔍 Validation 세트(2024년)에서 {len(th_grid)} × {len(tp_grid)} × {len(sl_grid)} = {len(th_grid)*len(tp_grid)*len(sl_grid)}개 조합 전수 탐색 시작...")
+    print(f"\n[{datetime.now().strftime('%H:%M:%S')}] 🔍 Validation 세트(2024년)에서 {len(th_grid)*len(tp_grid)*len(sl_grid)}개 조합 전수 탐색 시작...")
     
     grid_results = []
     
     for th in th_grid:
         for tp in tp_grid:
             for sl in sl_grid:
-                # 보유 기간은 TP 크기에 비례하여 여유 부여 (최소 6봉 ~ 최대 24봉)
-                max_b = min(24, max(6, int(tp * 200)))
+                # 4H 봉 기준 최대 18봉(72시간)까지 보유 허용
+                max_b = min(24, max(6, int(tp * 150)))
                 res = simulate_trades(df_val, 'p_bull', 'p_bear', th, tp, sl, max_bars=max_b)
                 
-                # 강건성 점수 (Sharpe * sqrt(거래수) * (1 - MDD/100))
-                score = res['sharpe'] * np.sqrt(max(1, res['trades'])) * (1.0 - abs(res['mdd'])/100.0) if res['total_return'] > 0 else -10.0
-                
+                # 최소 표본 수(8회 이상) 필터링 & 안정성 복합 점수
+                if res['trades'] >= 8:
+                    robust_score = res['total_return'] * (1.0 - abs(res['mdd'])/100.0) * (res['win_rate']/100.0)
+                else:
+                    robust_score = -100.0
+                    
                 grid_results.append({
                     'threshold': th,
                     'tp_pct': tp,
@@ -230,51 +226,51 @@ def run_tpsl_wide_grid_search():
                     'val_sharpe': res['sharpe'],
                     'val_win_rate': res['win_rate'],
                     'val_trades': res['trades'],
-                    'robust_score': score
+                    'robust_score': robust_score
                 })
                 
     df_grid = pd.DataFrame(grid_results)
     
-    print("="*95)
-    print("🏆 [Validation 세트 (2024년) 최상위 10대 파라미터 조합 (Top 10 Robust Plateaus)]")
+    # -------------------------------------------------------------------------
+    # 3대 핵심 클러스터별 분석표 출력
+    # -------------------------------------------------------------------------
+    print("\n" + "="*95)
+    print("🏆 [Validation 2024년 최상위 10대 파라미터 고원 (Top 10 Plateau Configurations)]")
     print("="*95)
     print(f"{'순위':<4} | {'진입역치':<8} | {'익절선(TP)':<10} | {'손절선(SL)':<10} | {'손익비(RR)':<10} | {'2024 검증수익':<14} | {'검증MDD':<10} | {'검증승률':<10} | {'거래수'}")
     print("-"*95)
     
-    df_grid_sorted = df_grid.sort_values('robust_score', ascending=False).reset_index(drop=True)
-    for idx, row in df_grid_sorted.head(10).iterrows():
+    df_grid_valid = df_grid[df_grid['val_trades'] >= 8].sort_values('robust_score', ascending=False).reset_index(drop=True)
+    for idx, row in df_grid_valid.head(10).iterrows():
         print(f"{idx+1:<4} | {row['threshold']*100:.0f}%      | {row['tp_str']:<10} | {row['sl_str']:<10} | 1:{row['rr_ratio']:<7.2f} | {row['val_return']:>11.1f}% | {row['val_mdd']:>8.1f}% | {row['val_win_rate']:>8.1f}% | {row['val_trades']:>4}회")
     print("="*95)
     
-    # -------------------------------------------------------------------------
-    # 🔒 블라인드 OOS Test 세트 (2025~2026) 및 4.66년 전구간 최종 채점
-    # -------------------------------------------------------------------------
-    # Validation 최상위 3대 대표 조합 선정
+    # 대표 3대 조합 선정 및 블라인드 OOS Test 평가
     top_configs = [
-        ("Config A (비대칭 스윙)", df_grid_sorted.iloc[0]),
-        ("Config B (고익절 중손절)", df_grid_sorted.iloc[2]),
-        ("Config C (안전형 타이트)", df_grid_sorted.iloc[5])
+        ("Config 1 (1:2 스윙 정석)", df_grid_valid.iloc[0]),
+        ("Config 2 (고수익 확장형)", df_grid_valid.iloc[2]),
+        ("Config 3 (안전형 타이트)", df_grid_valid.iloc[4])
     ]
     
-    print("\n" + "="*105)
-    print("🔒 [블라인드 최종 시험: Validation 상위 조합의 OOS Test(2025~2026) & 4.66년 풀사이클 성적표]")
-    print("="*105)
-    print(f"{'조합 명칭 및 세팅':<36} | {'2024 검증수익':<14} | {'2025~2026 OOS수익':<18} | {'OOS MDD':<10} | {'OOS 승률':<10} | {'4.66년 총수익(5x)':<18} | {'4.66년 MDD'}")
-    print("-"*105)
+    print("\n" + "="*110)
+    print("🔒 [블라인드 최종 시험: Validation 상위 3대 조합의 OOS Test(2025~2026) 및 4.66년 풀사이클 성적표]")
+    print("="*110)
+    print(f"{'조합 명칭 및 세팅':<38} | {'2024 검증수익':<14} | {'2025~2026 OOS수익':<18} | {'OOS MDD':<10} | {'OOS 승률':<10} | {'4.66년 총수익(5x)':<18} | {'4.66년 MDD'}")
+    print("-"*110)
     
     final_sim_list = []
     for cfg_name, row in top_configs:
         th = row['threshold']
         tp = row['tp_pct']
         sl = row['sl_pct']
-        max_b = min(24, max(6, int(tp * 200)))
+        max_b = min(24, max(6, int(tp * 150)))
         
         res_val = simulate_trades(df_val, 'p_bull', 'p_bear', th, tp, sl, max_bars=max_b)
         res_test = simulate_trades(df_test, 'p_bull', 'p_bear', th, tp, sl, max_bars=max_b)
         res_full = simulate_trades(df_full, 'p_bull', 'p_bear', th, tp, sl, max_bars=max_b)
         
         cfg_str = f"{cfg_name} (Th {th*100:.0f}%, TP {tp*100:.0f}%, SL {sl*100:.1f}%)"
-        print(f"{cfg_str:<36} | {res_val['total_return']:>11.1f}% | {res_test['total_return']:>15.1f}% | {res_test['mdd']:>8.1f}% | {res_test['win_rate']:>8.1f}% | {res_full['total_return']:>15.1f}% | {res_full['mdd']:>8.1f}%")
+        print(f"{cfg_str:<38} | {res_val['total_return']:>11.1f}% | {res_test['total_return']:>15.1f}% | {res_test['mdd']:>8.1f}% | {res_test['win_rate']:>8.1f}% | {res_full['total_return']:>15.1f}% | {res_full['mdd']:>8.1f}%")
         
         final_sim_list.append({
             'name': cfg_str,
@@ -282,10 +278,10 @@ def run_tpsl_wide_grid_search():
             'res_test': res_test,
             'res_full': res_full
         })
-    print("="*105)
+    print("="*110)
     
     # -------------------------------------------------------------------------
-    # 시각화 차트 생성 (히트맵 2D + 계좌 곡선)
+    # 2D 히트맵 시각화
     # -------------------------------------------------------------------------
     chart_dir = os.path.join(PROJECT_ROOT, "results", "charts")
     os.makedirs(chart_dir, exist_ok=True)
@@ -294,24 +290,24 @@ def run_tpsl_wide_grid_search():
     fig = plt.figure(figsize=(16, 12))
     gs = fig.add_gridspec(2, 2)
     
-    # 1. 히트맵: Threshold 38% 기준 TP vs SL 수익률 곡면 (Validation Set)
+    # 1. 히트맵: Threshold 38% 기준 TP vs SL 수익률
     ax1 = fig.add_subplot(gs[0, 0])
     sub_th38 = df_grid[df_grid['threshold'] == 0.38]
     pivot_ret = sub_th38.pivot(index='sl_str', columns='tp_str', values='val_return')
-    sns.heatmap(pivot_ret, annot=True, fmt=".0f", cmap='RdYlGn', center=0, ax=ax1, cbar_kws={'label': 'Validation Return (%)'})
-    ax1.set_title("1. Validation Return (%) by TP vs SL (Threshold = 38%)", fontsize=11, fontweight='bold')
-    ax1.set_xlabel("Take Profit (%)")
-    ax1.set_ylabel("Stop Loss (%)")
+    sns.heatmap(pivot_ret, annot=True, fmt=".0f", cmap='RdYlGn', center=0, ax=ax1, cbar_kws={'label': 'Return (%)'})
+    ax1.set_title("1. Validation Return (%) by TP vs SL (1%~10% Range / Th=38%)", fontsize=11, fontweight='bold')
+    ax1.set_xlabel("Take Profit (TP %)")
+    ax1.set_ylabel("Stop Loss (SL %)")
     
-    # 2. 히트맵: Threshold 38% 기준 TP vs SL 샤프지수
+    # 2. 히트맵: Threshold 38% 기준 TP vs SL 승률
     ax2 = fig.add_subplot(gs[0, 1])
-    pivot_sharpe = sub_th38.pivot(index='sl_str', columns='tp_str', values='val_sharpe')
-    sns.heatmap(pivot_sharpe, annot=True, fmt=".2f", cmap='Blues', ax=ax2, cbar_kws={'label': 'Sharpe Ratio'})
-    ax2.set_title("2. Validation Sharpe Ratio (Parameter Plateau)", fontsize=11, fontweight='bold')
-    ax2.set_xlabel("Take Profit (%)")
-    ax2.set_ylabel("Stop Loss (%)")
+    pivot_win = sub_th38.pivot(index='sl_str', columns='tp_str', values='val_win_rate')
+    sns.heatmap(pivot_win, annot=True, fmt=".0f", cmap='Blues', ax=ax2, cbar_kws={'label': 'Win Rate (%)'})
+    ax2.set_title("2. Validation Win Rate (%) Plateau (Th=38%)", fontsize=11, fontweight='bold')
+    ax2.set_xlabel("Take Profit (TP %)")
+    ax2.set_ylabel("Stop Loss (SL %)")
     
-    # 3. 하단: 최종 4.66년 자산 성장 곡선 (Validation vs Test 연결)
+    # 3. 하단: 최종 4.66년 자산 성장 곡선
     ax3 = fig.add_subplot(gs[1, :])
     for item in final_sim_list:
         full = item['res_full']
