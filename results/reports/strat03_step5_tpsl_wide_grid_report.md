@@ -16,7 +16,7 @@
 
 *탐색 범위: 진입역치 `[36%, 38%, 40%, 42%]` $\times$ 익절(TP) `[1% ~ 10%]` $\times$ 손절(SL) `[1% ~ 10%]` = **총 400개 조합***
 
-```mermaid
+```mermaid![![alt text](image-2.png)](image-1.png)
 flowchart TD
     Grid["🔍 2024년 Validation 세트 400개 조합 전수 탐색 (TP 1%~10% × SL 1%~10%)"]
     
