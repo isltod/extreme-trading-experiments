@@ -82,35 +82,28 @@
 
 ---
 
-## 📌 [전략 3] 4H Multi-Timeframe Regime-Adaptive Dual Engine
+## 📌 [전략 3] 4H Macro Regime-Adaptive Control Tower
 * **전략 ID:** `STRAT-03-REGIME-ADAPTIVE`
-* **전략 별칭:** 4H 멀티 타임프레임 국면 적응형 듀얼 엔진 전략
-* **버전:** `v0.1 (Research & Design Phase)`
+* **전략 별칭:** 4H 거시 국면 적응형 관제탑 (Macro Control Tower)
+* **버전:** `v1.0 (Validated & Architecture Finalized)`
 * **최초 등록일:** 2026-09-01
-* **상태:** 🧪 연구 기획 및 5대 독립 알고리즘 벤치마크 단계
+* **상태:** ✅ **연구 및 표본 외(OOS) 검증 완료, 프로덕션 공통 모듈 동결(Freeze)**
 * **전용 연구 문서함:**
-  * 📜 [전략 3 기획서 및 연구 로드맵 (Strategy Charter)](strat03_regime/strategy_charter.md)
-  * 📊 [Step 1 4H ATR Ratio 리포트](../results/reports/strat03_step1_atr_report.md)
-  * 📊 [Step 2 4H Hurst DFA 리포트](../results/reports/strat03_step2_hurst_report.md)
-  * 📊 [Step 3 4H Gaussian HMM 리포트](../results/reports/strat03_step3_hmm_report.md)
-  * 📊 [Step 4 4H Morphology ML 리포트](../results/reports/strat03_step4_morphology_ml_report.md)
-  * 📊 [Step 4 CatBoost 및 앙상블 전수 비교 리포트](../results/reports/strat03_step4_catboost_report.md)
-  * 🚀 [Step 5 4H 순방향 국면 독립 스윙 전략 리포트](../results/reports/strat03_directional_regime_swing_report.md)
-  * 🔬 [Step 5 3-Way 광범위(1%~10%) TP/SL 그리드 서치 및 고원(Plateau) 리포트 (5x)](../results/reports/strat03_step5_tpsl_wide_grid_report.md)
-  * 🔬 [Step 5 10배 레버리지 광범위 TP/SL 그리드 서치 및 OOS 리포트 (10x)](../results/reports/strat03_step5_tpsl_10x_grid_report.md)
-  * 🧠 [금융 ML 국면 판정 지표 체계와 학제간 인식론 고찰 (생태학 vs 금융공학)](../results/reports/regime_ml_metrics_and_interdisciplinary_insights.md)
-* **핵심 아키텍처:**
-  * **상위 관제탑(4H):** 5대 직교 피처 기반 CatBoost + Random Forest 앙상블 국면 판정기 (OOS MCC +0.1478)
-  * **독립 스윙 실행부(4H):** 1:2 비대칭 손익비(익절 +4~6% vs 손절 -2~3%) 기반 저빈도 고승률 독립 스윙 전략
-* **벤치마크 마일스톤:**
-  * **Step 0:** 4.66년 풀사이클(2022~2026, 163,617개 15M / 10,197개 4H) 데이터셋 구축 완료
-  * **Step 1 (ATR Ratio):** 선형 이동평균 후행성 한계 규명 (Recall 28.8%, 방어율 21.6%)
-  * **Step 2 (Hurst DFA):** 프랙탈 기억성 기반 극단적 방어막 (Recall 86.1%, 방어율 87.7%, 거래수 377회)
-  * **Step 3 (3-State HMM):** 3차원 결합확률 기반 중간 균형점 확보 (Recall 47.8%, 방어율 43.0%, 거래수 1,402회)
-  * **Step 4 (Morphology ML & CatBoost):** 5대 직교 피처 + CatBoost/RF 앙상블로 2022-01-20 역사적 대폭락 빔 사전 100% 방어
-  * **Step 5 (4H Standalone Directional Regime Swing Strategy):**
-    * 3-Class 다중 분류 앙상블 + 1:2 비대칭 손익비로 **4H 국면 판정기 단독 매매 전략 구축 완료**
-    * **10배 레버리지 성과:** 4.66년간 **총수익률 +1,201.2% (13배 성장), MDD -9.8% 🛡️, 승률 59~68%**
-    * **3-Way 데이터 엄격 분할(Train / Val / Test) 및 400개 조합 전수 탐색으로 파라미터 고원(Plateau: TP 4~6% / SL 2~3%) 및 일반화 성공 검증 완료**
+  * 📜 [전략 3 기획서 (Strategy Charter v1.0)](strat03_regime/strategy_charter.md)
+  * 🔬 [최종 실험 및 OOS/민감도 검증 리포트 (Experiment Results)](strat03_regime/experiment_results.md)
+  * 💡 [약세장 특화 알파 및 차기 전략 아이디어 백로그 (Other Ideas)](other_ideas.md)
+* **핵심 실행 모듈:** [`experiments/strat03_regime/regime_control_tower.py`](../experiments/strat03_regime/regime_control_tower.py)
+* **핵심 아키텍처 및 철학:**
+  * **상위 거시 관제탑(4H):** 4H 200 EMA + Supertrend(ATR 20, Mult 3.0) 합의 기반 비모수적 국면 판정기 (1개 봉 지연 쉬프트로 미래참조 0% 차단)
+  * **출력 상태:** `Regime +1 (황소 35.3%)`, `Regime 0 (횡보 29.8%)`, `Regime -1 (약세 34.9%)`
+* **감사(Audit) 및 핵심 검증 마일스톤:**
+  * **초기 머신러닝(CatBoost/앙상블) 결함 규명:** 목적함수 불일치, 4시간 무적 인덱싱 버그, 훈련 표본 대비 극단적 과적합(피처 60개)으로 인한 Walk-Forward OOS 붕괴(-48.4%) 및 3-Layer 메타라벨링 파산(-80%~-96%) 공식 확인 후 폐기.
+  * **최종 관제탑 7-Fold Walk-Forward OOS 검증:** 4.66개년(2022~2026) 7개 폴드 중 6개 폴드 승리, 2022년 루나/FTX 폭락장(Fold 1) **+54.4% 수익 완주**, 전체 기간 누적 **+93.0% (MDD -11.7%)** 달성.
+  * **파라미터 민감도 고원(Plateau) 확인:** EMA(150~250) × Mult(2.5~3.5) 9개 전수 조합에서 **+86% ~ +167%** 고른 수익 및 MDD -20%~-35% 기록 (절벽 없는 견고한 고원 입증).
+  * **국면 분리 능력:** Regime +1(BTC 자연 표류 +24,462%), Regime 0(표류율 +0.014%/4H의 순수 박스권), Regime -1(-99.5% 폭락) 완벽 식별.
+  * **롱-숏 비대칭성 규명 및 롱 온리 성과:** 약세장 단순 4H 숏의 숏 스퀴즈 손실(-26.1%)을 제거하고 Regime -1을 현금 방어막(Shield)으로 전환 시, 롱 온리 성과가 **+109.8% ~ +167.4% (MDD -20.7%~-23.6%)**로 비약적 상승.
+* **차기 전략 연계:**
+  * 전략 3(관제탑)은 현 상태로 동결하며, 본 관제탑 신호를 기반으로 하위 세부 실행 모델(**전략 2:** 횡보/상승 알파, **전략 4:** 약세장 롱숏/스퀴즈 숏) 개발 착수.
+
 
 
