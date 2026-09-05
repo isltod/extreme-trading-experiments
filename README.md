@@ -51,15 +51,19 @@ extreme_trading_experiments/
   * 마스터 로그북: [`docs/strategies_logbook.md`](docs/strategies_logbook.md)
   * 전용 연구 리포트: [`docs/strat01_vwap/theoretical_review.md`](docs/strat01_vwap/theoretical_review.md)
 
-* **[전략 3] 4H Multi-Timeframe Regime Classifier & Standalone Swing (`STRAT-03-REGIME-ADAPTIVE`)**
-  * 상태: 🚀 **4H 국면 판정기 기반 독립 직접 매매 스윙 전략 검증 완료 (+1,201.2% 수익률, MDD -9.8%)**
-  * 핵심 구조: 4H 관제탑 (CatBoost + RF 3-Class 앙상블) + 1:2 비대칭 손익비(익절 4~6% vs 손절 2~3%) 스윙 엔진
-  * 마스터 리포트:
-    * 📜 [전략 3 기획서 및 로드맵](docs/strat03_regime/strategy_charter.md)
-    * 🚀 [Step 5 4H 순방향 국면 독립 스윙 전략 리포트](results/reports/strat03_directional_regime_swing_report.md)
-    * 🔬 [Step 5 3-Way 광범위(1%~10%) TP/SL 그리드 서치 리포트 (5x)](results/reports/strat03_step5_tpsl_wide_grid_report.md)
-    * 🔬 [Step 5 10배 레버리지 광범위 TP/SL 그리드 서치 및 OOS 리포트 (10x)](results/reports/strat03_step5_tpsl_10x_grid_report.md)
-    * 🧠 [금융 ML 국면 판정 지표 체계와 학제간 인식론 고찰 (생태학 vs 금융공학)](results/reports/regime_ml_metrics_and_interdisciplinary_insights.md)
+* **[전략 3] 4H Macro Regime Control Tower & Multi-World Consensus (`STRAT-03-REGIME-CONTROL-TOWER`)**
+  * 상태: 🚀 **v1.1 다중 월드 롤링 합의(Multi-World Rolling Consensus) 검증 완료 (4.66년 풀사이클 +176.4%, MDD -19.3%, 승률 32.0%)**
+  * 핵심 구조:
+    * 4H 200 EMA + Supertrend(20, 3.0) 기반의 추세 순항 관제 엔진
+    * 4시간 캔들 위상을 5분 단위로 분할한 48개 평행 우주(Multi-World) 앙상블
+    * 만장일치(48/48) 진입 & 과반 이탈(24/48) 청산으로 00시 고정 편향 제거 및 휩쏘 억제 (137회 ➔ 100회)
+    * 하위 스윙/스캘핑 전략(15M 돌파 등)과 완전 동기화되는 실시간 거시 국면 게이트웨이
+  * 마스터 문서 및 리포트:
+    * 📜 [전략 3 기획서 및 로드맵 v1.1](docs/strat03_regime/strategy_charter.md)
+    * 🔬 [전략 3 실험 및 백테스트 종합 보고서 (다중 월드 실측 포함)](docs/strat03_regime/experiment_results.md)
+    * 📋 [전략 종합 마스터 로그북](docs/strategies_logbook.md)
+    * 🧠 [금융 ML 국면 판정 지표 체계와 학제간 인식론 고찰](results/reports/regime_ml_metrics_and_interdisciplinary_insights.md)
+
 
 
 
