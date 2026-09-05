@@ -31,3 +31,9 @@ desktop.ini
 *.pkl
 .cache/
 
+# Raw Data & Cache files
+data/*
+!data/.gitkeep
+!data/README.md
+
+
