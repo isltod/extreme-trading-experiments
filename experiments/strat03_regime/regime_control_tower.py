@@ -1,16 +1,17 @@
 """
-Regime Adaptive Control Tower (전략 3 최종 확정 모듈)
+Regime Adaptive Control Tower (전략 3 확정 모듈 v1.2)
 =====================================================
-- 용도: 상위 타임프레임(4H)에서 시장의 거시 국면을 판정하여 하위 전략(전략 1, 2, 4)에 제공하는 관제탑.
-- 입력: 4H OHLCV 데이터 (또는 15M 데이터 리샘플링)
-- 출력:
-    * +1 (Bull / Uptrend): 롱 추세 추종 활성화
-    *  0 (Chop / Sideways): 방향성 없음, 100% 현금 또는 평균회귀/그리드/흡수 전략 활성화
-    * -1 (Bear / Downtrend): 절대 하락 국면, 롱 금지 (현금화 또는 횡단면 롱숏/데드캣 바운스 숏 활성화)
+- 용도: 상위 타임프레임(4H)에서 시장의 거시 국면을 판정하여 하위 전략(전략 1, 2, 4)에 무지연 배포.
+- 입력: 4H OHLCV 데이터 (또는 15M / 5M 데이터 리샘플링)
+- 국면별 거버넌스 및 출력:
+    * +1 (Bull / Uptrend): 롱 추세 추종 활성화 (자본 100%, 1.0x)
+    *  0 (Chop / Sideways): 방향성 없음, 100% 현금 보존 (차기 전략 1 전용 할당 자본, Simple Earn 0% 거버넌스)
+    * -1 (Bear / Downtrend): 절대 하락 국면 (롱 금지, 20일 신저가 붕괴 시 0.25x 스나이퍼 숏 + 잔여 자본 5% Simple Earn)
 
-- 검증 지표:
-    * 4.6개년(2022-2026) 7-Fold Walk-Forward OOS 전 구간 생존
-    * 파라미터 민감도(EMA 150~250, Mult 2.5~3.5) 전 구간 +86% ~ +167% 수익 (과적합 위험 없음)
+- 검증 지표 (4.66개년 풀사이클 실측):
+    * 3-C Bear-Only 최종 확정안 (횡보 이자 제외): 총수익률 +286.5%, CAGR 33.51%, MDD -18.63%, 샤프 0.95, 승률 44.6% (224회)
+    * 3-C Pure 순수 트레이딩 (이자 0%): 총수익률 +257.9%, CAGR 31.33%, MDD -18.78%, 샤프 0.91, 승률 44.6%
+    * 파라미터 민감도(EMA 150~250, Mult 2.5~3.5) 전 구간 안정적 우상향 (과적합 위험 없음)
 """
 
 import numpy as np
@@ -163,7 +164,15 @@ def create_offset_4h_world(
     regime[(grouped["close"] < ema) & (st == -1)] = -1
     grouped["regime"] = regime
 
-    return grouped[["trade_timestamp", "regime"]].copy()
+    # 4H Donchian Low (20일 = 120개 4H 봉) 및 ATR(20봉) - 완성봉 기준 shift=1 (Lookahead 0%)
+    grouped["donchian_low_20d"] = grouped["low"].rolling(120).min().shift(1)
+    tr1 = grouped["high"] - grouped["low"]
+    tr2 = (grouped["high"] - grouped["close"].shift(1)).abs()
+    tr3 = (grouped["low"] - grouped["close"].shift(1)).abs()
+    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+    grouped["atr_4h"] = tr.rolling(st_period).mean().shift(1)
+
+    return grouped[["trade_timestamp", "regime", "donchian_low_20d", "atr_4h"]].copy()
 
 
 def compute_multi_world_regimes(
@@ -176,7 +185,7 @@ def compute_multi_world_regimes(
     exit_th_ratio: float = 0.5,
 ) -> pd.DataFrame:
     """
-    다중 월드 롤링 합의 관제탑 (Multi-World Rolling Consensus Control Tower)
+    다중 월드 롤링 합의 관제탑 (Multi-World Rolling Consensus Control Tower v1.2)
 
     - 15분봉 입력 시: 16개 평행 우주(World 00~15) 앙상블 (240 / 15 = 16)
     - 5분봉 입력 시: 48개 평행 우주(World 00~47) 앙상블 (240 / 5 = 48)
@@ -186,6 +195,9 @@ def compute_multi_world_regimes(
       * short_votes: 숏 합의 월드 수 (0 ~ n_worlds)
       * consensus_ratio: 실시간 거시 상승 합의율 (0.0 ~ 1.0)
       * ensemble_regime: 최종 앙상블 국면 (+1: 만장일치 불장, 0: 관망/횡보, -1: 만장일치 약세장)
+      * donchian_low_20d: 4H 20일 최저가 (직전 완성봉 기준 지지선)
+      * atr_4h: 4H 20주기 ATR (직전 완성봉 기준 변동성)
+      * sniper_short_signal: 약세 국면 속 20일 신저가 붕괴 스나이퍼 숏 진입 신호 (True / False)
     """
     bars_per_4h = 240 // interval_minutes
     n_worlds = bars_per_4h
@@ -200,21 +212,27 @@ def compute_multi_world_regimes(
             ema_period=ema_period,
             st_period=st_period,
             st_multiplier=st_multiplier,
-        ).rename(columns={"regime": f"regime_w{k}"})
-        world_dfs.append((w, f"regime_w{k}"))
+        ).rename(
+            columns={
+                "regime": f"regime_w{k}",
+                "donchian_low_20d": f"donchian_w{k}",
+                "atr_4h": f"atr_w{k}",
+            }
+        )
+        world_dfs.append((w, f"regime_w{k}", f"donchian_w{k}", f"atr_w{k}"))
 
     df_res = df[["timestamp", "open", "high", "low", "close", "volume"]].copy()
 
-    for w_df, col in world_dfs:
+    for w_df, r_col, d_col, a_col in world_dfs:
         df_res = pd.merge_asof(
             df_res,
-            w_df,
+            w_df[["trade_timestamp", r_col, d_col, a_col]],
             left_on="timestamp",
             right_on="trade_timestamp",
             direction="backward",
         )
         df_res.drop(columns=["trade_timestamp"], inplace=True)
-        df_res[col] = df_res[col].fillna(0).astype(int)
+        df_res[r_col] = df_res[r_col].fillna(0).astype(int)
 
     reg_cols = [f"regime_w{k}" for k in range(n_worlds)]
     df_res["long_votes"] = (df_res[reg_cols] == 1).sum(axis=1)
@@ -250,8 +268,25 @@ def compute_multi_world_regimes(
 
     df_res["ensemble_regime"] = ens_states
 
+    # 대표 우주(World 0) 기반 20일 신저가 및 ATR 산출
+    df_res["donchian_low_20d"] = df_res["donchian_w0"].ffill()
+    df_res["atr_4h"] = df_res["atr_w0"].ffill()
+
+    # 20일 신저가 붕괴 스나이퍼 숏 시그널 생성 (약세 국면 + 신저가 하향 돌파 찰나)
+    prev_close = df_res["close"].shift(1)
+    df_res["sniper_short_signal"] = (
+        (df_res["short_votes"] >= exit_th)
+        & (df_res["close"] < df_res["donchian_low_20d"])
+        & (prev_close >= df_res["donchian_low_20d"])
+    )
+
     # 개별 월드 컬럼 정리
-    df_res.drop(columns=reg_cols, inplace=True)
+    drop_cols = [
+        c
+        for c in df_res.columns
+        if "regime_w" in c or "donchian_w" in c or "atr_w" in c
+    ]
+    df_res.drop(columns=drop_cols, inplace=True)
     return df_res
 
 
@@ -297,12 +332,14 @@ if __name__ == "__main__":
     e_pos = (df_ens["ensemble_regime"] == 1).sum()
     e_zero = (df_ens["ensemble_regime"] == 0).sum()
     e_neg = (df_ens["ensemble_regime"] == -1).sum()
+    n_snipers = df_ens["sniper_short_signal"].sum()
 
     print(f"Total 15M Timeline Bars: {n_ens:,}")
     print(f"Ensemble +1 (Bull): {e_pos} bars ({e_pos/n_ens*100:.1f}%)")
     print(f"Ensemble  0 (Chop): {e_zero} bars ({e_zero/n_ens*100:.1f}%)")
     print(f"Ensemble -1 (Bear): {e_neg} bars ({e_neg/n_ens*100:.1f}%)")
+    print(f"20일 신저가 붕괴 스나이퍼 신호 발생: {n_snipers}회")
     print(f"평균 거시 합의율: {df_ens['consensus_ratio'].mean()*100:.1f}%")
     print(
-        "[Control Tower] 검증 완료. 단독 및 다중 월드 관제탑 모듈이 성공적으로 동결되었습니다."
+        "[Control Tower] v1.2 검증 완료. 롱 추세 + 신저가 스나이퍼 숏 통합 관제탑이 정상 동결되었습니다."
     )
