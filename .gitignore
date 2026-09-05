@@ -28,5 +28,6 @@ desktop.ini
 # Logs & Temporary files
 *.log
 *.tmp
+*.pkl
 .cache/
 
